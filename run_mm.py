@@ -52,6 +52,8 @@ def train_model(model, train_mat, test_mat, config, logger):
 
     initial_list = []
     training_list = []
+    sampling_list = []
+    inference_list = []
     for epoch in range(config.epoch):
         loss_ , kld_loss = 0.0, 0.0
         logger.info("Epoch %d"%epoch)
@@ -59,6 +61,9 @@ def train_model(model, train_mat, test_mat, config, logger):
             del sampler
             if config.sampler > 2:
                 del item_emb
+        
+        infer_total_time = 0.0
+        sample_total_time = 0.0
         t0 = time.time()
         if config.sampler > 0:
             if config.sampler == 1:
@@ -77,8 +82,7 @@ def train_model(model, train_mat, test_mat, config, logger):
                 sampler = MidxUniPop(item_emb, config.sample_num, device, config.cluster_num, pop_count)
         t1 = time.time()
         
-
-
+        
         for batch_idx, data in enumerate(train_dataloader):
             model.train()
             if config.sampler > 0 :
@@ -89,8 +93,11 @@ def train_model(model, train_mat, test_mat, config, logger):
             pos_id = pos_id.to(device)
             
             optimizer.zero_grad()
-            mu, logvar, loss = model(pos_id, sampler)
-            
+            tt0 = time.time()
+            mu, logvar, loss, sample_time = model(pos_id, sampler)
+            tt1 = time.time()
+            sample_total_time += sample_time
+            infer_total_time += tt1 - tt0
         
             kl_divergence = model.kl_loss(mu, logvar, config.anneal, reduction=config.reduction)/config.batch_size
 
@@ -111,15 +118,18 @@ def train_model(model, train_mat, test_mat, config, logger):
         gc.collect()
         initial_list.append(t1 - t0)
         training_list.append(t2 - t1)
+        sampling_list.append(sample_total_time)
+        inference_list.append(infer_total_time)
 
         
         if (epoch % 10) == 0:
             result = evaluate(model, train_mat, test_mat, logger, device)
             logger.info('***************Eval_Res : NDCG@5,10,50 %.6f, %.6f, %.6f'%(result['item_ndcg'][4], result['item_ndcg'][9], result['item_ndcg'][49]))
             logger.info('***************Eval_Res : RECALL@5,10,50 %.6f, %.6f, %.6f'%(result['item_recall'][4], result['item_recall'][9], result['item_recall'][49]))
-    logger.info(' Initial Time : {}'.format(np.mean(initial_list)))
-    logger.info(' Training Time: {}'.format(np.mean(training_list)))
-
+    logger.info('  Initial Time : {}'.format(np.mean(initial_list)))
+    logger.info(' Sampling Time : {}'.format(np.mean(sampling_list)))
+    logger.info(' Inference Time: {}'.format(np.mean(inference_list)))
+    logger.info(' Training Time (One epoch, including the dataIO, sampling, inference and backward time) : {}'.format(np.mean(training_list)))
 
 def utils_optim(learning_rate, model, w):
     if config.optim=='adam':
@@ -188,6 +198,7 @@ if __name__ == "__main__":
     import os
     if not os.path.exists(config.log_path):
         os.makedirs(config.log_path)
+    
     
     alg = config.model
     sampler = str(config.sampler) + '_' + str(config.multi) + 'x'
