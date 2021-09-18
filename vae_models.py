@@ -68,9 +68,10 @@ class BaseVAE(nn.Module):
         items = torch.arange(self.num_item + 1, device=z.device)
         self.pos_items = pos_items
         part_rats = self.decode(z, items)
+        t00 = time.time()
         loss = self.loss_function(part_rats)
-
-        return mu, logvar, loss, 0.0
+        t11 = time.time()
+        return mu, logvar, loss, 0.0, t11-t00
     
     def kl_loss(self, mu, log_var, anneal=1.0, reduction=False):
         if reduction is True:
@@ -129,8 +130,10 @@ class VAE_Sampler(BaseVAE):
         
         pos_rat = (user_emb.unsqueeze(1) * pos_items_emb).sum(-1)
         neg_rat = (user_emb.unsqueeze(1) * neg_items_emb).sum(-1)
+        t00 = time.time()
         loss = self.loss_function(neg_rat, neg_prob, pos_rat, pos_prob)
-        return mu, logvar, loss, t1 - t0
+        t11 = time.time()
+        return mu, logvar, loss, t1 - t0, t11 - t00
     
     def loss_function(self, part_rats, log_prob_neg=None, pos_rats=None, log_prob_pos=None, reduction=False):
         idx_mtx = (pos_rats != 0).double()

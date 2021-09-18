@@ -54,6 +54,7 @@ def train_model(model, train_mat, test_mat, config, logger):
     training_list = []
     sampling_list = []
     inference_list = []
+    cal_loss_list = []
     for epoch in range(config.epoch):
         loss_ , kld_loss = 0.0, 0.0
         logger.info("Epoch %d"%epoch)
@@ -64,6 +65,7 @@ def train_model(model, train_mat, test_mat, config, logger):
         
         infer_total_time = 0.0
         sample_total_time = 0.0
+        loss_total_time = 0.0
         t0 = time.time()
         if config.sampler > 0:
             if config.sampler == 1:
@@ -94,10 +96,11 @@ def train_model(model, train_mat, test_mat, config, logger):
             
             optimizer.zero_grad()
             tt0 = time.time()
-            mu, logvar, loss, sample_time = model(pos_id, sampler)
+            mu, logvar, loss, sample_time, loss_time = model(pos_id, sampler)
             tt1 = time.time()
             sample_total_time += sample_time
             infer_total_time += tt1 - tt0
+            loss_total_time += loss_time
         
             kl_divergence = model.kl_loss(mu, logvar, config.anneal, reduction=config.reduction)/config.batch_size
 
@@ -120,6 +123,8 @@ def train_model(model, train_mat, test_mat, config, logger):
         training_list.append(t2 - t1)
         sampling_list.append(sample_total_time)
         inference_list.append(infer_total_time)
+        cal_loss_list.append(loss_total_time)
+        
 
         
         if (epoch % 10) == 0:
@@ -129,6 +134,7 @@ def train_model(model, train_mat, test_mat, config, logger):
     logger.info('  Initial Time : {}'.format(np.mean(initial_list)))
     logger.info(' Sampling Time : {}'.format(np.mean(sampling_list)))
     logger.info(' Inference Time: {}'.format(np.mean(inference_list)))
+    logger.info(' Calc Loss Time: {}'.format(np.mean(cal_loss_list)))
     logger.info(' Training Time (One epoch, including the dataIO, sampling, inference and backward time) : {}'.format(np.mean(training_list)))
 
 def utils_optim(learning_rate, model, w):
