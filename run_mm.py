@@ -162,11 +162,7 @@ def main(config, logger=None):
         raise ValueError('Not supported model name!!!')
     model = model.to(device)
     train_model(model, train_mat, test_mat, config, logger)
-    
-    # user_emb = get_user_embs(train_mat, model, device)
-    # item_emb = model._get_item_emb()
-    # np.save('ml10M_user.npy', user_emb.cpu().data.detach().numpy())
-    # np.save('ml10M_item.npy', item_emb.cpu().data.detach().numpy())
+
     return evaluate(model, train_mat, test_mat, logger, device)
 
 

@@ -4,7 +4,7 @@ export CUDA_VISIBLE_DEVICES="2"
 
 
 b=256
-logs='log_midx_pop_test'
+logs='log_midx'
 w=0.01
 lr=0.001
 # for w in 0.01 0.001 0.0001
